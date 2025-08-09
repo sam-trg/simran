@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scratch to Reveal</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #111;
+    height: 100%;
+    overflow: hidden;
+    font-family: sans-serif;
+  }
+  #container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  #hiddenImage {
+    position: absolute;
+    inset: 0;
+    background: url('me_and_sister.jpg') center/cover no-repeat;
+    z-index: 0;
+  }
+  #scratchCanvas {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    touch-action: none;
+  }
+  #overlayText {
+    position: absolute;
+    bottom: 15%;
+    width: 100%;
+    text-align: center;
+    font-size: 2.5rem;
+    color: #fff;
+    font-weight: bold;
+    text-shadow: 0 0 10px rgba(0,0,0,0.8);
+    opacity: 0;
+    transition: opacity 1s ease-in-out;
+    z-index: 2;
+  }
+  canvas#confetti {
+    position: fixed;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 3;
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="hiddenImage"></div>
+  <canvas id="scratchCanvas"></canvas>
+  <div id="overlayText">Happy Rakhi!</div>
+  <canvas id="confetti"></canvas>
+</div>
+<audio id="celebrationSound" src="celebration.mp3" preload="auto"></audio>
+
+<script>
+const scratchCanvas = document.getElementById('scratchCanvas');
+const ctx = scratchCanvas.getContext('2d');
+const overlayText = document.getElementById('overlayText');
+const sound = document.getElementById('celebrationSound');
+const confettiCanvas = document.getElementById('confetti');
+const confettiCtx = confettiCanvas.getContext('2d');
+let particles = [];
+
+function resizeCanvas() {
+  scratchCanvas.width = window.innerWidth;
+  scratchCanvas.height = window.innerHeight;
+  confettiCanvas.width = window.innerWidth;
+  confettiCanvas.height = window.innerHeight;
+  ctx.fillStyle = '#ccc';
+  ctx.fillRect(0, 0, scratchCanvas.width, scratchCanvas.height);
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+let isDrawing = false;
+function getPos(e) {
+  if (e.touches) {
+    return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  } else {
+    return { x: e.clientX, y: e.clientY };
+  }
+}
+
+function startDraw(e) {
+  isDrawing = true;
+  draw(e);
+}
+function endDraw() {
+  isDrawing = false;
+  ctx.beginPath();
+  checkScratchPercentage();
+}
+function draw(e) {
+  if (!isDrawing) return;
+  e.preventDefault();
+  const pos = getPos(e);
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.beginPath();
+  ctx.arc(pos.x, pos.y, 20, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+scratchCanvas.addEventListener('mousedown', startDraw);
+scratchCanvas.addEventListener('mouseup', endDraw);
+scratchCanvas.addEventListener('mousemove', draw);
+scratchCanvas.addEventListener('touchstart', startDraw);
+scratchCanvas.addEventListener('touchend', endDraw);
+scratchCanvas.addEventListener('touchmove', draw);
+
+function checkScratchPercentage() {
+  const imageData = ctx.getImageData(0, 0, scratchCanvas.width, scratchCanvas.height);
+  let cleared = 0;
+  for (let i = 3; i < imageData.data.length; i += 4) {
+    if (imageData.data[i] === 0) cleared++;
+  }
+  const percent = cleared / (scratchCanvas.width * scratchCanvas.height) * 100;
+  if (percent > 50) triggerReveal();
+}
+
+function createConfetti() {
+  particles = [];
+  for (let i = 0; i < 150; i++) {
+    particles.push({
+      x: Math.random() * confettiCanvas.width,
+      y: Math.random() * confettiCanvas.height - confettiCanvas.height,
+      r: Math.random() * 6 + 2,
+      d: Math.random() * 0.5 + 0.5,
+      color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+    });
+  }
+}
+
+function drawConfetti() {
+  confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+  for (let p of particles) {
+    confettiCtx.beginPath();
+    confettiCtx.fillStyle = p.color;
+    confettiCtx.ellipse(p.x, p.y, p.r, p.r / 2, Math.random() * Math.PI, 0, 2 * Math.PI);
+    confettiCtx.fill();
+  }
+  updateConfetti();
+  requestAnimationFrame(drawConfetti);
+}
+
+function updateConfetti() {
+  for (let p of particles) {
+    p.y += p.d * 5;
+    if (p.y > confettiCanvas.height) {
+      p.y = -10;
+      p.x = Math.random() * confettiCanvas.width;
+    }
+  }
+}
+
+function triggerReveal() {
+  scratchCanvas.style.display = 'none';
+  overlayText.style.opacity = 1;
+  sound.play();
+  createConfetti();
+  drawConfetti();
+}
+</script>
+</body>
+</html>
